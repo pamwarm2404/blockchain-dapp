@@ -1,0 +1,40 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "D:\\crowdfunding-web\\contracts\\Crowdfunding.sol": {
+      "lastModificationDate": 1790486962820,
+      "contentHash": "1d9100d5e7ae700a4812407045b92ebd",
+      "sourceName": "contracts/Crowdfunding.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "Crowdfunding"
+      ]
+    }
+  }
+}

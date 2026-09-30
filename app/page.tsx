@@ -12,6 +12,7 @@ export default function Home() {
   const [duration, setDuration] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [history, setHistory] = useState([]);
 
   // =========================================================
   // 1. ÉP BUỘC METAMASK CHUYỂN SANG MẠNG SEPOLIA
@@ -132,9 +133,24 @@ export default function Home() {
 
           // 5.3. Lắng nghe sự kiện "Có người quyên góp" (Tên sự kiện khớp file .sol)
           contract.on("DonationReceived", (campaignId, donor, amount, event) => {
-            console.log(`🔔 REAL-TIME EVENT: New Donation! Campaign ID: ${campaignId}, Donor: ${donor}`);
-            loadCampaigns(); 
-          });
+  console.log(`🔔 REAL-TIME EVENT: New Donation! Campaign ID: ${campaignId}, Donor: ${donor}`);
+  
+  // 1. Đổi tiền từ Wei sang ETH
+  const formattedAmount = ethers.formatEther(amount);
+  
+  // 2. Tạo bản ghi lịch sử mới
+  const newRecord = {
+    campaignId: Number(campaignId),
+    donor: donor,
+    amount: formattedAmount,
+    time: new Date().toLocaleTimeString()
+  };
+
+  // 3. Đẩy lên UI (giữ tối đa 10 giao dịch gần nhất)
+  setHistory((prevHistory) => [newRecord, ...prevHistory].slice(0, 10));
+
+  loadCampaigns(); 
+});
 
           // Gỡ bỏ bộ lắng nghe khi tắt trình duyệt để tránh lag
           return () => {
@@ -388,6 +404,27 @@ export default function Home() {
                 <p className="text-gray-500 italic text-center py-8">
                   No campaigns found on the Blockchain.
                 </p>
+          {/* BẢNG TIN HOẠT ĐỘNG - GLOBAL ACTIVITY FEED */}
+<div className="mt-8 bg-white p-6 rounded-xl shadow-md border border-gray-100">
+  <h2 className="text-xl font-bold mb-4 text-blue-600">
+    🕒 Live Activity Feed
+  </h2>
+  
+  <div className="space-y-3">
+    {history.length === 0 ? (
+      <p className="text-gray-500 italic text-sm">Chưa có giao dịch nào gần đây. Hãy là người đầu tiên!</p>
+    ) : (
+      history.map((item, index) => (
+        <div key={index} className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700 border-l-4 border-green-500 shadow-sm animate-pulse-once">
+          🎉 Ví <span className="font-semibold text-blue-600">{item.donor.slice(0, 6)}...{item.donor.slice(-4)}</span> vừa quyên góp 
+          <span className="font-bold text-green-600"> {item.amount} ETH </span> 
+          cho Chiến dịch số <span className="font-bold">#{item.campaignId}</span>
+          <span className="block text-xs text-gray-400 mt-1">Vào lúc {item.time}</span>
+        </div>
+      ))
+    )}
+  </div>
+</div>
               ) : (
                 campaigns.map((camp) => (
                   <div className="flex justify-between items-center mt-4">

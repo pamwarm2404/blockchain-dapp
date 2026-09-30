@@ -265,6 +265,30 @@ export default function Home() {
       setIsLoading(false);
     }
   };
+  // =========================================================
+  // 8.5. HOÀN TIỀN (REFUND) - Dành cho chiến dịch thất bại
+  // =========================================================
+  const handleRefund = async (campaignId: number) => {
+    try {
+      setIsLoading(true);
+      await switchToSepolia();
+      const contract = await getContract(true);
+      
+      // LƯU Ý: Nếu file .sol của bạn đặt tên hàm là refund() thay vì claimRefund(), hãy sửa lại đoạn này cho khớp.
+      const tx = await contract.claimRefund(campaignId); 
+      alert(`⏳ Processing refund from Sepolia network.\n\nPlease confirm in MetaMask.`);
+      
+      await tx.wait();
+      alert("🎉 Refund successful!\n\nETH has been returned to your wallet.");
+      await loadCampaigns();
+    } catch (error: any) {
+      console.error("Refund error:", error);
+      const errorMessage = error?.reason || error?.shortMessage || error?.message || "Unknown error";
+      alert("❌ Refund failed:\n\n" + errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // =========================================================
   // 9. GIAO DIỆN (UI) - Đã dịch 100% tiếng Anh
@@ -366,26 +390,29 @@ export default function Home() {
                 </p>
               ) : (
                 campaigns.map((camp) => (
-                  <div key={camp.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50 hover:shadow-sm transition">
-                    <h3 className="font-bold text-lg text-gray-900">{camp.title}</h3>
-                    <p className="text-sm text-gray-600 mb-2 mt-1">Goal: {camp.goalAmount} ETH</p>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3">
-                      <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "0%" }} />
-                    </div>
-                    <div className="flex justify-between items-center mt-4">
-                      {/* Hiển thị ngày giờ dạng chuẩn tiếng Anh en-US */}
+                  <div className="flex justify-between items-center mt-4">
                       <span className="text-xs font-medium text-red-500">
-                        Deadline: {new Date(camp.deadline * 1000).toLocaleString("en-US")}
+                         Deadline: {new Date(camp.deadline * 1000).toLocaleString("en-US")}
                       </span>
-                      <button
-                        onClick={() => handleDonate(camp.id)}
+                  <div className="flex gap-2">
+                  <button
+                    onClick={() => handleDonate(camp.id)}
+                    disabled={isLoading}
+                    className={`px-4 py-2 rounded text-sm font-bold transition ${
+                    isLoading ? "bg-gray-400 text-gray-200" : "bg-green-500 text-white hover:bg-green-600"
+                    }`}
+                  >
+                   Donate
+                  </button>
+                   <button
+                        onClick={() => handleRefund(camp.id)}
                         disabled={isLoading}
                         className={`px-4 py-2 rounded text-sm font-bold transition ${
-                          isLoading ? "bg-gray-400 text-gray-200" : "bg-green-500 text-white hover:bg-green-600"
-                        }`}
-                      >
-                        {isLoading ? "Processing..." : "Donate"}
-                      </button>
+                        isLoading ? "bg-gray-400 text-gray-200" : "bg-yellow-500 text-gray-900 hover:bg-yellow-600"
+                          }`}
+                           >
+                         Refund
+                     </button>
                     </div>
                   </div>
                 ))

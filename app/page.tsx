@@ -12,7 +12,7 @@ export default function Home() {
   const [duration, setDuration] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState<any[]>([]); // Đã thêm kiểu dữ liệu mảng
 
   // =========================================================
   // 1. ÉP BUỘC METAMASK CHUYỂN SANG MẠNG SEPOLIA
@@ -27,7 +27,6 @@ export default function Home() {
         params: [{ chainId: "0xaa36a7" }], // 0xaa36a7 là mã Hex của mạng Sepolia
       });
     } catch (error: any) {
-      // Nếu ví MetaMask của người dùng chưa từng thêm mạng Sepolia (lỗi 4902)
       if (error.code === 4902) {
         await ethereum.request({
           method: "wallet_addEthereumChain",
@@ -48,7 +47,7 @@ export default function Home() {
   };
 
   // =========================================================
-  // 2. KIỂM TRA MẠNG HIỆN TẠI CỦA VÍ (Đã sửa lỗi BigInt)
+  // 2. KIỂM TRA MẠNG HIỆN TẠI CỦA VÍ 
   // =========================================================
   const checkSepoliaNetwork = async () => {
     const ethereum = (window as any).ethereum;
@@ -57,7 +56,6 @@ export default function Home() {
     const provider = new ethers.BrowserProvider(ethereum);
     const network = await provider.getNetwork();
 
-    // Dùng hàm BigInt(11155111) để tránh lỗi cú pháp ES2020 của VS Code
     if (network.chainId !== BigInt(11155111)) {
       throw new Error("MetaMask is not on Sepolia network. Please switch to Sepolia.");
     }
@@ -65,19 +63,19 @@ export default function Home() {
   };
 
   // =========================================================
-  // 3. HÀM KẾT NỐI VỚI SMART CONTRACT (Dùng chung)
+  // 3. HÀM KẾT NỐI VỚI SMART CONTRACT 
   // =========================================================
   const getContract = async (needSigner = false) => {
     const provider = await checkSepoliaNetwork();
     if (needSigner) {
-      const signer = await provider.getSigner(); // Dành cho hàm Ghi (Tạo, Quyên góp)
+      const signer = await provider.getSigner(); 
       return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
     }
-    return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider); // Dành cho hàm Đọc
+    return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider); 
   };
 
   // =========================================================
-  // 4. KẾT NỐI VÍ METAMASK (Nút bấm trên giao diện)
+  // 4. KẾT NỐI VÍ METAMASK 
   // =========================================================
   const connectWallet = async () => {
     if (typeof window === "undefined" || !(window as any).ethereum) {
@@ -95,10 +93,9 @@ export default function Home() {
       
       setAccount(accounts[0]);
       await checkSepoliaNetwork();
-      await loadCampaigns(); // Tải dữ liệu ngay khi kết nối thành công
-      await fetchHistoricalEvents(); // Tải lịch sử sự kiện để minh chứng báo cáo
+      await loadCampaigns(); 
+      await fetchHistoricalEvents(); 
       
-      alert("🎉 Wallet connected successfully!\n\nCurrent Network: Sepolia");
     } catch (error: any) {
       console.error("Wallet connection error:", error);
       alert("❌ Failed to connect wallet:\n\n" + (error?.message || "Unknown error"));
@@ -108,13 +105,12 @@ export default function Home() {
   };
 
   // =========================================================
-  // 5. LẮNG NGHE SỰ KIỆN REAL-TIME & TRUY XUẤT LỊCH SỬ (Ăn điểm 2.5)
+  // 5. LẮNG NGHE SỰ KIỆN REAL-TIME 
   // =========================================================
   useEffect(() => {
     const ethereum = (window as any).ethereum;
     
     const setupListeners = async () => {
-      // 5.1. Lắng nghe nếu người dùng đổi tài khoản khác trong ví MetaMask
       if (ethereum) {
         ethereum.on("accountsChanged", (accounts: string[]) => {
           setAccount(accounts.length > 0 ? accounts[0] : "");
@@ -125,34 +121,27 @@ export default function Home() {
         try {
           const contract = await getContract(false);
           
-          // 5.2. Lắng nghe sự kiện "Có người tạo chiến dịch mới"
           contract.on("CampaignCreated", (campaignId, creator, title, goal, deadline, event) => {
             console.log(`🔔 REAL-TIME EVENT: New Campaign! ID: ${campaignId}, Title: ${title}`);
-            loadCampaigns(); // Tự động làm mới danh sách không cần F5
+            loadCampaigns(); 
           });
 
-          // 5.3. Lắng nghe sự kiện "Có người quyên góp" (Tên sự kiện khớp file .sol)
           contract.on("DonationReceived", (campaignId, donor, amount, event) => {
-  console.log(`🔔 REAL-TIME EVENT: New Donation! Campaign ID: ${campaignId}, Donor: ${donor}`);
-  
-  // 1. Đổi tiền từ Wei sang ETH
-  const formattedAmount = ethers.formatEther(amount);
-  
-  // 2. Tạo bản ghi lịch sử mới
-  const newRecord = {
-    campaignId: Number(campaignId),
-    donor: donor,
-    amount: formattedAmount,
-    time: new Date().toLocaleTimeString()
-  };
+            console.log(`🔔 REAL-TIME EVENT: New Donation! Campaign ID: ${campaignId}, Donor: ${donor}`);
+            
+            const formattedAmount = ethers.formatEther(amount);
+            
+            const newRecord = {
+              campaignId: Number(campaignId),
+              donor: donor,
+              amount: formattedAmount,
+              time: new Date().toLocaleTimeString()
+            };
 
-  // 3. Đẩy lên UI (giữ tối đa 10 giao dịch gần nhất)
-  setHistory((prevHistory) => [newRecord, ...prevHistory].slice(0, 10));
+            setHistory((prevHistory) => [newRecord, ...prevHistory].slice(0, 10));
+            loadCampaigns(); 
+          });
 
-  loadCampaigns(); 
-});
-
-          // Gỡ bỏ bộ lắng nghe khi tắt trình duyệt để tránh lag
           return () => {
             contract.removeAllListeners("CampaignCreated");
             contract.removeAllListeners("DonationReceived");
@@ -166,18 +155,18 @@ export default function Home() {
     setupListeners();
   }, [account]);
 
-  // 5.4. Hàm lục lọi lịch sử sự kiện (Truy xuất minh chứng cho Giảng viên xem trong Console)
+  // Đã fix số block thành -9000 để không bị MetaMask chặn giới hạn 10000 blocks
   const fetchHistoricalEvents = async () => {
     try {
       const contract = await getContract(false);
       console.log("===== FETCHING HISTORICAL EVENTS =====");
       
       const createFilter = contract.filters.CampaignCreated();
-      const pastCreates = await contract.queryFilter(createFilter, 6850000, "latest");
+      const pastCreates = await contract.queryFilter(createFilter, -9000, "latest");
       console.log("📜 Historical Campaigns Created:", pastCreates);
 
       const donateFilter = contract.filters.DonationReceived();
-      const pastDonates = await contract.queryFilter(donateFilter, 6850000, "latest");
+      const pastDonates = await contract.queryFilter(donateFilter, -9000, "latest");
       console.log("📜 Historical Donations:", pastDonates);
       console.log("======================================");
     } catch (err) {
@@ -193,7 +182,7 @@ export default function Home() {
       const contract = await getContract(false);
       const count = await contract.campaignCount();
       const loadedCampaigns = [];
-      const campaignCount = Number(count); // Chuyển từ BigInt sang số nguyên
+      const campaignCount = Number(count); 
 
       for (let i = 1; i <= campaignCount; i++) {
         try {
@@ -201,7 +190,7 @@ export default function Home() {
           loadedCampaigns.push({
             id: i,
             title: camp.title,
-            goalAmount: ethers.formatEther(camp.goalAmount), // Chuyển từ Wei về ETH
+            goalAmount: ethers.formatEther(camp.goalAmount), 
             deadline: Number(camp.deadline),
           });
         } catch (error) {
@@ -220,8 +209,6 @@ export default function Home() {
   // =========================================================
   const handleCreateCampaign = async (e: any) => {
     e.preventDefault();
-
-    // Ràng buộc (Constraints) ở Frontend
     if (!title || !goal || !duration) return alert("⚠️ Please fill in all fields!");
     if (Number(goal) <= 0) return alert("⚠️ Goal (ETH) must be greater than 0!");
     if (Number(duration) <= 0) return alert("⚠️ Duration must be greater than 0!");
@@ -230,17 +217,17 @@ export default function Home() {
       setIsLoading(true);
       await switchToSepolia();
       const contract = await getContract(true);
-      const goalInWei = ethers.parseEther(goal); // Chuyển số ETH người nhập thành đơn vị Wei chuẩn
+      const goalInWei = ethers.parseEther(goal); 
       const durationInMinutes = parseInt(duration);
 
       const tx = await contract.createCampaign(title, goalInWei, durationInMinutes);
       alert("⏳ Transaction is being sent to Sepolia network.\n\nPlease confirm in MetaMask.");
       
-      await tx.wait(); // Chờ giao dịch đào xong
+      await tx.wait(); 
       alert("🎉 Campaign created successfully!");
       
-      setTitle(""); setGoal(""); setDuration(""); // Xóa form
-      await loadCampaigns(); // Tải lại danh sách
+      setTitle(""); setGoal(""); setDuration(""); 
+      await loadCampaigns(); 
     } catch (error: any) {
       console.error("Error creating campaign:", error);
       const errorMessage = error?.reason || error?.shortMessage || error?.message || "Unknown error";
@@ -266,7 +253,6 @@ export default function Home() {
       const contract = await getContract(true);
       const amountInWei = ethers.parseEther(amount);
 
-      // Đính kèm số tiền quyên góp vào trường value của giao dịch
       const tx = await contract.donate(campaignId, { value: amountInWei });
       alert(`⏳ Sending ${amount} ETH to Sepolia network.\n\nPlease confirm in MetaMask.`);
       
@@ -281,8 +267,9 @@ export default function Home() {
       setIsLoading(false);
     }
   };
+
   // =========================================================
-  // 8.5. HOÀN TIỀN (REFUND) - Dành cho chiến dịch thất bại
+  // 8.5. HOÀN TIỀN (REFUND) 
   // =========================================================
   const handleRefund = async (campaignId: number) => {
     try {
@@ -290,7 +277,6 @@ export default function Home() {
       await switchToSepolia();
       const contract = await getContract(true);
       
-      // LƯU Ý: Nếu file .sol của bạn đặt tên hàm là refund() thay vì claimRefund(), hãy sửa lại đoạn này cho khớp.
       const tx = await contract.claimRefund(campaignId); 
       alert(`⏳ Processing refund from Sepolia network.\n\nPlease confirm in MetaMask.`);
       
@@ -307,7 +293,7 @@ export default function Home() {
   };
 
   // =========================================================
-  // 9. GIAO DIỆN (UI) - Đã dịch 100% tiếng Anh
+  // 9. GIAO DIỆN (UI) 
   // =========================================================
   return (
     <main className="min-h-screen bg-gray-50 p-8 text-gray-800 flex flex-col items-center pt-10">
@@ -331,14 +317,13 @@ export default function Home() {
           </button>
         </div>
       ) : (
-        <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-8">
           
-          {/* CỘT BÊN TRÁI */}
+          {/* ==================== CỘT BÊN TRÁI ==================== */}
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
               <p className="text-green-600 font-bold mb-2">🎉 Wallet Connected:</p>
               <p className="text-sm text-blue-600 font-medium mb-2">Network: Sepolia</p>
-              {/* Địa chỉ ví đã được rút gọn cho chuyên nghiệp */}
               <p className="font-mono text-sm bg-gray-100 p-3 rounded text-gray-600 break-all">
                 {account.slice(0, 6)}...{account.slice(-4)}
               </p>
@@ -396,65 +381,78 @@ export default function Home() {
             </div>
           </div>
 
-          {/* CỘT BÊN PHẢI */}
-          <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Active Fundraising Campaigns</h2>
-            <div className="space-y-4 overflow-y-auto max-h-[500px] pr-2">
-              {campaigns.length === 0 ? (
-                <p className="text-gray-500 italic text-center py-8">
-                  No campaigns found on the Blockchain.
-                </p>
-          {/* BẢNG TIN HOẠT ĐỘNG - GLOBAL ACTIVITY FEED */}
-<div className="mt-8 bg-white p-6 rounded-xl shadow-md border border-gray-100">
-  <h2 className="text-xl font-bold mb-4 text-blue-600">
-    🕒 Live Activity Feed
-  </h2>
-  
-  <div className="space-y-3">
-    {history.length === 0 ? (
-      <p className="text-gray-500 italic text-sm">Chưa có giao dịch nào gần đây. Hãy là người đầu tiên!</p>
-    ) : (
-      history.map((item, index) => (
-        <div key={index} className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700 border-l-4 border-green-500 shadow-sm animate-pulse-once">
-          🎉 Ví <span className="font-semibold text-blue-600">{item.donor.slice(0, 6)}...{item.donor.slice(-4)}</span> vừa quyên góp 
-          <span className="font-bold text-green-600"> {item.amount} ETH </span> 
-          cho Chiến dịch số <span className="font-bold">#{item.campaignId}</span>
-          <span className="block text-xs text-gray-400 mt-1">Vào lúc {item.time}</span>
-        </div>
-      ))
-    )}
-  </div>
-</div>
-              ) : (
-                campaigns.map((camp) => (
-                  <div className="flex justify-between items-center mt-4">
-                      <span className="text-xs font-medium text-red-500">
-                         Deadline: {new Date(camp.deadline * 1000).toLocaleString("en-US")}
-                      </span>
-                  <div className="flex gap-2">
-                  <button
-                    onClick={() => handleDonate(camp.id)}
-                    disabled={isLoading}
-                    className={`px-4 py-2 rounded text-sm font-bold transition ${
-                    isLoading ? "bg-gray-400 text-gray-200" : "bg-green-500 text-white hover:bg-green-600"
-                    }`}
-                  >
-                   Donate
-                  </button>
-                   <button
-                        onClick={() => handleRefund(camp.id)}
-                        disabled={isLoading}
-                        className={`px-4 py-2 rounded text-sm font-bold transition ${
-                        isLoading ? "bg-gray-400 text-gray-200" : "bg-yellow-500 text-gray-900 hover:bg-yellow-600"
+          {/* ==================== CỘT BÊN PHẢI ==================== */}
+          <div className="space-y-6">
+            
+            {/* KHU VỰC 1: DANH SÁCH CHIẾN DỊCH */}
+            <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Active Fundraising Campaigns</h2>
+              
+              <div className="space-y-4 overflow-y-auto max-h-[400px] pr-2">
+                {campaigns.length === 0 ? (
+                  <p className="text-gray-500 italic text-center py-8">
+                    No campaigns found on the Blockchain.
+                  </p>
+                ) : (
+                  campaigns.map((camp) => (
+                    <div key={camp.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50 flex justify-between items-center">
+                      <div>
+                        {/* ĐÂY LÀ PHẦN CODE ĐÃ KHÔI PHỤC TÊN VÀ GOAL CHIẾN DỊCH */}
+                        <h3 className="font-bold text-lg text-blue-600">{camp.title}</h3>
+                        <p className="text-sm text-gray-700 font-semibold mb-1">Goal: {camp.goalAmount} ETH</p>
+                        
+                        <span className="text-xs font-medium text-red-500 bg-red-50 px-2 py-1 rounded">
+                          Deadline: {new Date(camp.deadline * 1000).toLocaleString("en-US")}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 flex-col sm:flex-row">
+                        <button
+                          onClick={() => handleDonate(camp.id)}
+                          disabled={isLoading}
+                          className={`px-4 py-2 rounded text-sm font-bold transition ${
+                            isLoading ? "bg-gray-400 text-gray-200" : "bg-green-500 text-white hover:bg-green-600"
                           }`}
-                           >
-                         Refund
-                     </button>
+                        >
+                          Donate
+                        </button>
+                        <button
+                          onClick={() => handleRefund(camp.id)}
+                          disabled={isLoading}
+                          className={`px-4 py-2 rounded text-sm font-bold transition ${
+                            isLoading ? "bg-gray-400 text-gray-200" : "bg-yellow-500 text-gray-900 hover:bg-yellow-600"
+                          }`}
+                        >
+                          Refund
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
+              </div>
             </div>
+
+            {/* KHU VỰC 2: BẢNG TIN HOẠT ĐỘNG (NẰM DƯỚI DANH SÁCH CHIẾN DỊCH) */}
+            <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+              <h2 className="text-xl font-bold mb-4 text-blue-600">
+                🕒 Live Activity Feed
+              </h2>
+              
+              <div className="space-y-3">
+                {history.length === 0 ? (
+                  <p className="text-gray-500 italic text-sm">Chưa có giao dịch nào gần đây. Hãy là người đầu tiên!</p>
+                ) : (
+                  history.map((item, index) => (
+                    <div key={index} className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700 border-l-4 border-green-500 shadow-sm animate-pulse-once">
+                      🎉 Ví <span className="font-semibold text-blue-600">{item.donor.slice(0, 6)}...{item.donor.slice(-4)}</span> vừa quyên góp 
+                      <span className="font-bold text-green-600"> {item.amount} ETH </span> 
+                      cho Chiến dịch số <span className="font-bold">#{item.campaignId}</span>
+                      <span className="block text-xs text-gray-400 mt-1">Vào lúc {item.time}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
       )}

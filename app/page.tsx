@@ -173,11 +173,11 @@ export default function Home() {
       console.log("===== FETCHING HISTORICAL EVENTS =====");
       
       const createFilter = contract.filters.CampaignCreated();
-      const pastCreates = await contract.queryFilter(createFilter, 0, "latest");
+      const pastCreates = await contract.queryFilter(createFilter, 6850000, "latest");
       console.log("📜 Historical Campaigns Created:", pastCreates);
 
       const donateFilter = contract.filters.DonationReceived();
-      const pastDonates = await contract.queryFilter(donateFilter, 0, "latest");
+      const pastDonates = await contract.queryFilter(donateFilter, 6850000, "latest");
       console.log("📜 Historical Donations:", pastDonates);
       console.log("======================================");
     } catch (err) {
